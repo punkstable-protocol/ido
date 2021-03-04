@@ -80,10 +80,13 @@ contract Ido {
     receive() external payable checkStart {
         require(msg.value > 0 && msg.value <= maxAllocation, "The subscription quantity exceeds the limit");
         require(heldTokens[msg.sender] == 0, "Number of times exceeded");
-        require(isFunding, "closed");
+        require(isFunding, "ido is closed");
         uint256 heldAmount = exchangeRate * msg.value;
         require(totalRaise + msg.value <= maxFundsRaised);
         totalRaise += msg.value;
+        if (totalRaise == maxFundsRaised){
+            isFunding = false;
+        }
         ETHWallet.transfer(msg.value);
         createHoldToken(msg.sender, heldAmount);
         emit Contribution(msg.sender, heldAmount);
@@ -98,6 +101,9 @@ contract Ido {
         uint256 heldAmount = exchangeRate * msg.value;
         require(totalRaise + msg.value <= maxFundsRaised);
         totalRaise += msg.value;
+        if (totalRaise == maxFundsRaised){
+            isFunding = false;
+        }
         ETHWallet.transfer(msg.value);
         createHoldToken(msg.sender, heldAmount);
         emit Contribution(msg.sender, heldAmount);

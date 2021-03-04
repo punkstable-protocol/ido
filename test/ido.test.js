@@ -2,7 +2,7 @@ const RICE = artifacts.require("IFAToken")
 const Ido = artifacts.require("Ido")
 const { ether, BN, balance, send, expectRevert, time } = require('@openzeppelin/test-helpers');
 
-const detailsTotal = ether('2500')
+const detailsTotal = ether('25')
 const startBlock = '1000'
 
 contract('Ido contract testing', ([alice, bob, carol, breeze, wallet, weifong]) => {
@@ -19,7 +19,7 @@ contract('Ido contract testing', ([alice, bob, carol, breeze, wallet, weifong]) 
             await this.rice.transfer(bob, ether('10'), { from: alice })
             await this.rice.transfer(carol, ether('20'), { from: alice })
             await this.rice.transfer(breeze, ether('200'), { from: alice })
-            await this.rice.transfer(weifong, ether('100'), { from: alice })
+            await this.rice.transfer(weifong, ether('10000'), { from: alice })
             // console.log(`give account transfer xx ether`)
         }
         this.exchangeRate = await this.ido.exchangeRate()
@@ -153,6 +153,43 @@ contract('Ido contract testing', ([alice, bob, carol, breeze, wallet, weifong]) 
             poolDetails.toString(),
             detailsTotal.toString(),
             'pool details amount error'
+        )
+    });
+});
+
+contract('IDO Special scene test', ([alice, bob, carol, breeze, wallet,]) => {
+    before(async () => {
+        this.rice = await RICE.new({ from: alice })
+        this.ido = await Ido.new(wallet, this.rice.address, detailsTotal, startBlock, { from: alice })
+        await this.rice.addMinter(alice, { from: alice })
+        await this.rice.mint(alice, ether('20000000'), { from: alice })
+        await this.rice.transfer(this.ido.address, ether('20000'), { from: alice })
+        if (await this.rice.balanceOf(bob) < ether('10')) {
+            await this.rice.transfer(bob, ether('10'), { from: alice })
+            await this.rice.transfer(carol, ether('20'), { from: alice })
+            await this.rice.transfer(breeze, ether('200'), { from: alice })
+        }
+        this.exchangeRate = await this.ido.exchangeRate()
+    });
+
+    it('transfer close', async () => {
+        await send.ether(bob, this.ido.address, ether('20'))
+        let fundingStatus = await this.ido.isFunding()
+        await expectRevert(
+            this.ido.releaseHeldCoins({ from: bob }),
+            "Haven't reached the claim goal"
+        )
+        assert.strictEqual(fundingStatus.toString(), 'true')
+
+        let carolRice = await this.rice.balanceOf(carol)
+        await send.ether(carol, this.ido.address, ether('5'))
+        fundingStatus = await this.ido.isFunding()
+        assert.strictEqual(fundingStatus.toString(), 'false')
+        await this.ido.releaseHeldCoins({ from: carol })
+        assert.strictEqual(
+            (await this.rice.balanceOf(carol)).toString(),
+            carolRice.add(ether('5').mul(new BN(this.exchangeRate))).toString(),
+            'claim rice amount error'
         )
     });
 });
