@@ -77,24 +77,9 @@ contract Ido {
         isFunding = false;
     }
 
-    receive() external payable checkStart {
-        require(msg.value > 0 && msg.value <= maxAllocation, "The subscription quantity exceeds the limit");
-        require(heldTokens[msg.sender] == 0, "Number of times exceeded");
-        require(isFunding, "ido is closed");
-        require(totalRaise + msg.value <= maxFundsRaised);
-        uint256 heldAmount = exchangeRate * msg.value;
-        totalRaise += msg.value;
-        if (totalRaise == maxFundsRaised){
-            isFunding = false;
-        }
-        ETHWallet.transfer(msg.value);
-        createHoldToken(msg.sender, heldAmount);
-        emit Contribution(msg.sender, heldAmount);
-    }
-
     // CONTRIBUTE FUNCTION
     // converts ETH to TOKEN and sends new TOKEN to the sender
-    function contribute() external payable checkStart {
+    receive() external payable checkStart {
         require(msg.value > 0 && msg.value <= maxAllocation, "The subscription quantity exceeds the limit");
         require(heldTokens[msg.sender] == 0, "Number of times exceeded");
         require(isFunding, "ido is closed");
@@ -133,18 +118,17 @@ contract Ido {
     // function to create held tokens for developer
     function createHoldToken(address _to, uint256 amount) internal {
         heldTokens[_to] = amount;
-        heldTimeline[_to] = block.number + 0;
+        heldTimeline[_to] = block.number;
         heldTotal += amount;
     }
 
     // function to release held tokens for developers
     function releaseHeldCoins() external checkStart {
-        uint256 held = heldTokens[msg.sender];
-        uint256 heldBlock = heldTimeline[msg.sender];
         require(!isFunding, "Haven't reached the claim goal");
-        require(held >= 0, "Number of holdings is 0");
-        require(block.number >= heldBlock, "Abnormal transaction");
+        require(heldTokens[msg.sender] >= 0, "Number of holdings is 0");
+        require(block.number >= heldTimeline[msg.sender], "Abnormal transaction");
         require(transferStats, "Transaction stopped");
+        uint256 held = heldTokens[msg.sender];
         heldTokens[msg.sender] = 0;
         heldTimeline[msg.sender] = 0;
         IERC20(riceToken).transfer(msg.sender, held);
