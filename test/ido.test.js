@@ -5,7 +5,7 @@ const { ether, BN, balance, send, expectRevert, time } = require('@openzeppelin/
 const detailsTotal = ether('25')
 const startBlock = '1000'
 
-contract('Ido contract testing', ([alice, bob, carol, breeze, wallet, weifong]) => {
+contract('Ido contract testing', ([alice, bob, carol, breeze, wallet, joy]) => {
     before(async () => {
         // this.rice = await RICE.deployed()
         // this.ido = await Ido.deployed()
@@ -19,7 +19,7 @@ contract('Ido contract testing', ([alice, bob, carol, breeze, wallet, weifong]) 
             await this.rice.transfer(bob, ether('10'), { from: alice })
             await this.rice.transfer(carol, ether('20'), { from: alice })
             await this.rice.transfer(breeze, ether('200'), { from: alice })
-            await this.rice.transfer(weifong, ether('10000'), { from: alice })
+            await this.rice.transfer(joy, ether('10000'), { from: alice })
             // console.log(`give account transfer xx ether`)
         }
         this.exchangeRate = await this.ido.exchangeRate()
@@ -63,9 +63,9 @@ contract('Ido contract testing', ([alice, bob, carol, breeze, wallet, weifong]) 
             'The subscription quantity exceeds the limit'
         )
 
-        // carol and weifong transfer 10 ether to Ido
+        // carol and joy transfer 10 ether to Ido
         await send.ether(carol, this.ido.address, ether('10'))
-        await send.ether(weifong, this.ido.address, ether('1'))
+        await send.ether(joy, this.ido.address, ether('1'))
 
         // wallet ETH balace equal
         assert.strictEqual(
@@ -124,7 +124,7 @@ contract('Ido contract testing', ([alice, bob, carol, breeze, wallet, weifong]) 
         // close rice transfer
         await this.ido.changeTransferStats(0, { from: alice })
         await expectRevert(
-            this.ido.releaseHeldCoins({ from: weifong }),
+            this.ido.releaseHeldCoins({ from: joy }),
             'Transaction stopped'
         )
     });
