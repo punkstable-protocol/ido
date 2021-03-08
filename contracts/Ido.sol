@@ -1,5 +1,32 @@
 pragma solidity ^0.6.12;
 
+library MerkleProof {
+    /**
+     * @dev Returns true if a `leaf` can be proved to be a part of a Merkle tree
+     * defined by `root`. For this, a `proof` must be provided, containing
+     * sibling hashes on the branch from the leaf to the root of the tree. Each
+     * pair of leaves and each pair of pre-images are assumed to be sorted.
+     */
+    function verify(bytes32[] memory proof, bytes32 root, bytes32 leaf) internal pure returns (bool) {
+        bytes32 computedHash = leaf;
+
+        for (uint256 i = 0; i < proof.length; i++) {
+            bytes32 proofElement = proof[i];
+
+            if (computedHash <= proofElement) {
+                // Hash(current computed hash + current element of the proof)
+                computedHash = keccak256(abi.encodePacked(computedHash, proofElement));
+            } else {
+                // Hash(current element of the proof + current computed hash)
+                computedHash = keccak256(abi.encodePacked(proofElement, computedHash));
+            }
+        }
+
+        // Check if the computed hash (root) is equal to the provided root
+        return computedHash == root;
+    }
+}
+
 interface IERC20 {
     function totalSupply() external view returns (uint256);
 
@@ -31,10 +58,10 @@ interface IERC20 {
 }
 
 contract Ido {
-    address private riceToken;
     address private creator;
-    uint256 private startBlock;
-
+    
+    address public riceToken;
+    uint256 public startBlock;
     uint256 public exchangeRate = 2;
     uint256 public maxAllocation = 100 * 1e18;  // 18 decimals
     uint256 public maxFundsRaised;
@@ -43,6 +70,8 @@ contract Ido {
     address payable public ETHWallet;
     bool public transferStats = true;
     bool public isFunding = true;
+    
+    bytes32 public merkleRoot;
 
     mapping(address => uint256) public heldTokens;
     mapping(address => uint256) public heldTimeline;
@@ -77,13 +106,44 @@ contract Ido {
         isFunding = false;
     }
 
+    function setMerkleRoot(bytes32 _merkleRoot) public onlyOwner{
+        merkleRoot = _merkleRoot;
+    }
+
     // CONTRIBUTE FUNCTION
     // converts ETH to TOKEN and sends new TOKEN to the sender
-    receive() external payable checkStart {
+    // receive() external payable checkStart {
+    //     require(msg.value > 0 && msg.value <= maxAllocation, "The subscription quantity exceeds the limit");
+    //     require(heldTokens[msg.sender] == 0, "Number of times exceeded");
+    //     require(isFunding, "ido is closed");
+    //     require(totalRaise + msg.value <= maxFundsRaised);
+
+    //     // Verify the merkle proof.
+    //     // bytes32 node = keccak256(abi.encodePacked(index, account, amount));
+    //     // require(MerkleProof.verify(merkleProof, merkleRoot, node), 'Whitelist: Invalid proof.');
+
+    //     uint256 heldAmount = exchangeRate * msg.value;
+    //     totalRaise += msg.value;
+    //     if (totalRaise == maxFundsRaised){
+    //         isFunding = false;
+    //     }
+    //     ETHWallet.transfer(msg.value);
+    //     createHoldToken(msg.sender, heldAmount);
+    //     emit Contribution(msg.sender, heldAmount);
+    // }
+
+    // CONTRIBUTE FUNCTION
+    // converts ETH to TOKEN and sends new TOKEN to the sender
+    function contribute(uint256 index, address account, uint256 amount, bytes32[] calldata merkleProof) external payable checkStart {
         require(msg.value > 0 && msg.value <= maxAllocation, "The subscription quantity exceeds the limit");
         require(heldTokens[msg.sender] == 0, "Number of times exceeded");
         require(isFunding, "ido is closed");
         require(totalRaise + msg.value <= maxFundsRaised);
+
+        // Verify the merkle proof.
+        bytes32 node = keccak256(abi.encodePacked(index, account, amount));
+        require(MerkleProof.verify(merkleProof, merkleRoot, node), 'Whitelist: Invalid proof.');
+
         uint256 heldAmount = exchangeRate * msg.value;
         totalRaise += msg.value;
         if (totalRaise == maxFundsRaised){
