@@ -63,6 +63,7 @@ contract Ido {
     address public riceToken;
     uint256 public startBlock;
     uint256 public exchangeRate = 2;
+    uint256 public minAllocation = 1e17;
     uint256 public maxAllocation = 100 * 1e18;  // 18 decimals
     uint256 public maxFundsRaised;
     uint256 public totalRaise;
@@ -110,6 +111,14 @@ contract Ido {
         merkleRoot = _merkleRoot;
     }
 
+    function setMinAllocation(uint256 _minAllocation) public onlyOwner {
+        minAllocation = _minAllocation;
+    }
+
+    function setMaxAllocation(uint256 _maxAllocation) public onlyOwner {
+        maxAllocation = _maxAllocation;
+    }
+
     // CONTRIBUTE FUNCTION
     // converts ETH to TOKEN and sends new TOKEN to the sender
     // receive() external payable checkStart {
@@ -135,7 +144,7 @@ contract Ido {
     // CONTRIBUTE FUNCTION
     // converts ETH to TOKEN and sends new TOKEN to the sender
     function contribute(uint256 index, address account, uint256 amount, bytes32[] calldata merkleProof) external payable checkStart {
-        require(msg.value > 0 && msg.value <= maxAllocation, "The subscription quantity exceeds the limit");
+        require(msg.value >= minAllocation && msg.value <= maxAllocation, "The quantity exceeds the limit");
         require(heldTokens[msg.sender] == 0, "Number of times exceeded");
         require(isFunding, "ido is closed");
         require(totalRaise + msg.value <= maxFundsRaised);
